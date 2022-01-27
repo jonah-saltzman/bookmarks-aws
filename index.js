@@ -1,10 +1,13 @@
 const { S3 } = require('aws-sdk')
 const https = require('https')
 
-const REGION = 'us-east-2'
-
 const response = {
 	statusCode: null,
+	headers: {
+		'Access-Control-Allow-Headers': 'Content-Type',
+		'Access-Control-Allow-Origin': 'https://api.bookmarks.jonahsaltzman.dev',
+		'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+	},
 }
 
 const downloadImage = (url) => {
@@ -20,37 +23,43 @@ const downloadImage = (url) => {
 	})
 }
 
+const save = (params, done) => {
+	const s3 = new S3()
+	const upload = s3.upload(params);
+	const promise = upload.promise();
+	promise.then((data) => {
+		console.log('data')
+		console.log(data)
+		done(null, data)
+	}, (err) => {
+		console.log('err')
+		console.log(err)
+		done(err, null)
+	})
+}
+
 exports.handler = async function (event) {
 	const request = event
-	const s3 = new S3()
 	const data = await downloadImage(request.url)
 	const params = {
 		Bucket: 'bookmarks-media',
 		Key: request.media_key + '.' + request.type,
 		Body: data,
 	}
-	try {
-		const results = await s3.putObject(params)
-		console.log('results: ')
-		console.log(results)
-		console.log(
-			'Successfully created ' +
-				params.Key +
-				' and uploaded it to ' +
-				params.Bucket +
-				'/' +
-				params.Key
-		)
-		response.statusCode = 200
-		response.body = {
-			type: request.type,
-			key: params.Key,
-		}
-		return response // For unit tests.
-	} catch (err) {
-		console.log('Error', err)
-		response.statusCode = 500
-		response.body = { err }
-		return response
-	}
+	console.log('PARAMS:')
+	console.log(params)
+	const prom = new Promise((resolve, reject) => {
+		save(params, (err, data) => {
+			if (err) {
+				response.status = 500
+				response.body = err
+				reject(response)
+			}
+			response.status = 200
+			response.body = data
+			resolve(response)
+		})
+	})
+	const res = await prom
+	return res
 }
