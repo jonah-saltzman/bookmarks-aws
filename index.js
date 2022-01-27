@@ -45,8 +45,8 @@ const save = (params, done) => {
 }
 
 exports.handler = async function (event) {
-	console.log(event)
-	const request = JSON.parse(event.body)
+	console.log(event['body-json'])
+	const request = event['body-json']
 	console.log('request')
 	console.log(request)
 	const data = await downloadImage(request.url)
