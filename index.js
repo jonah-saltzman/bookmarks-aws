@@ -8,9 +8,12 @@ const response = {
 		'Access-Control-Allow-Origin': 'https://api.bookmarks.jonahsaltzman.dev',
 		'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
 	},
+	isBase64Encoded: false,
 }
 
 const downloadImage = (url) => {
+	console.log('img url:')
+	console.log(url)
 	const reqURL = new URL(url)
 	return new Promise((resolve, reject) => {
 		https
@@ -25,21 +28,27 @@ const downloadImage = (url) => {
 
 const save = (params, done) => {
 	const s3 = new S3()
-	const upload = s3.upload(params);
-	const promise = upload.promise();
-	promise.then((data) => {
-		console.log('data')
-		console.log(data)
-		done(null, data)
-	}, (err) => {
-		console.log('err')
-		console.log(err)
-		done(err, null)
-	})
+	const upload = s3.upload(params)
+	const promise = upload.promise()
+	promise.then(
+		(data) => {
+			console.log('data')
+			console.log(data)
+			done(null, data)
+		},
+		(err) => {
+			console.log('err')
+			console.log(err)
+			done(err, null)
+		}
+	)
 }
 
 exports.handler = async function (event) {
-	const request = event
+	console.log(event)
+	const request = JSON.parse(event.body)
+	console.log('request')
+	console.log(request)
 	const data = await downloadImage(request.url)
 	const params = {
 		Bucket: 'bookmarks-media',
@@ -51,12 +60,12 @@ exports.handler = async function (event) {
 	const prom = new Promise((resolve, reject) => {
 		save(params, (err, data) => {
 			if (err) {
-				response.status = 500
-				response.body = err
+				response.statusCode = 500
+				response.body = JSON.stringify(err)
 				reject(response)
 			}
-			response.status = 200
-			response.body = data
+			response.statusCode = 200
+			response.body = JSON.stringify(data)
 			resolve(response)
 		})
 	})
