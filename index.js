@@ -1,21 +1,14 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import * as https from 'https'
+const { S3 } = require('aws-sdk')
+const https = require('https')
 
 const REGION = 'us-east-2'
 
-const s3Client = new S3Client({ region: REGION })
-
 const response = {
 	statusCode: null,
-	headers: {
-		'Content-Type': 'application/json',
-	},
-	isBase64Encoded: false,
-	body: {},
 }
 
 const downloadImage = (url) => {
-  const reqURL = new URL(url)
+	const reqURL = new URL(url)
 	return new Promise((resolve, reject) => {
 		https
 			.get(reqURL, (response) => {
@@ -28,17 +21,16 @@ const downloadImage = (url) => {
 }
 
 exports.handler = async function (event) {
-	console.log(event)
-	const request = JSON.parse(event).body
-	console.log(request)
-  const data = await downloadImage(request.url)
+	const request = event
+	const s3 = new S3()
+	const data = await downloadImage(request.url)
 	const params = {
 		Bucket: 'bookmarks-media',
 		Key: request.media_key + '.' + request.type,
-		Body: data
+		Body: data,
 	}
 	try {
-		const results = await s3Client.send(new PutObjectCommand(params))
+		const results = await s3.putObject(params)
 		console.log('results: ')
 		console.log(results)
 		console.log(
@@ -52,17 +44,13 @@ exports.handler = async function (event) {
 		response.statusCode = 200
 		response.body = {
 			type: request.type,
-			key: params.Key
+			key: params.Key,
 		}
-		return JSON.stringify(response) // For unit tests.
+		return response // For unit tests.
 	} catch (err) {
 		console.log('Error', err)
 		response.statusCode = 500
-		response.body = {err}
-		return JSON.stringify(response)
+		response.body = { err }
+		return response
 	}
 }
-
-// media_key: media.key,
-// url: media.url,
-// type: media.url.match(extRE)[1],
